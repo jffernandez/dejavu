@@ -6,19 +6,11 @@ Audio fingerprinting and recognition algorithm implemented in Python, see the ex
 
 Dejavu can memorize audio by listening to it once and fingerprinting it. Then by playing a song and recording microphone input, Dejavu attempts to match the audio against the fingerprints held in the database, returning the song being played. 
 
-## Dependencies:
+Note that for voice recognition, Dejavu is not the right tool! Dejavu excels at recognition of exact signals with reasonable amounts of noise.
 
-I've only tested this on Unix systems.
+## Installation and Dependencies:
 
-* [`pyaudio`](http://people.csail.mit.edu/hubert/pyaudio/) for grabbing audio from microphone
-* [`ffmpeg`](https://github.com/FFmpeg/FFmpeg) for converting audio files to .wav format
-* [`pydub`](http://pydub.com/), a Python `ffmpeg` wrapper
-* [`numpy`](http://www.numpy.org/) for taking the FFT of audio signals
-* [`scipy`](http://www.scipy.org/), used in peak finding algorithms
-* [`matplotlib`](http://matplotlib.org/), used for spectrograms and plotting
-* [`MySQLdb`](http://mysql-python.sourceforge.net/MySQLdb.html) for interfacing with MySQL databases
-
-For installing `ffmpeg` on Mac OS X, I highly recommend [this post](http://jungels.net/articles/ffmpeg-howto.html).
+Read [INSTALLATION.md](INSTALLATION.md)
 
 ## Setup
 
@@ -31,6 +23,14 @@ Second, you'll need to create a MySQL database where Dejavu can store fingerprin
 	mysql> CREATE DATABASE IF NOT EXISTS dejavu;
 
 Now you're ready to start fingerprinting your audio collection! 
+
+## Quickstart
+
+```bash
+$ git clone https://github.com/worldveil/dejavu.git ./dejavu
+$ cd dejavu
+$ python example.py
+```
 
 ## Fingerprinting
 
@@ -100,31 +100,55 @@ An example configuration is as follows:
 >>> djv = Dejavu(config)
 ```
 
+## Tuning
+
+Inside `fingerprint.py`, you may want to adjust following parameters (some values are given below).
+
+    FINGERPRINT_REDUCTION = 30
+    PEAK_SORT = False
+    DEFAULT_OVERLAP_RATIO = 0.4
+    DEFAULT_FAN_VALUE = 10
+    DEFAULT_AMP_MIN = 15
+    PEAK_NEIGHBORHOOD_SIZE = 30
+    
+These parameters are described in the `fingerprint.py` in detail. Read that in-order to understand the impact of changing these values.
+
 ## Recognizing
 
-There are two ways to recognize audio using Dejavu. You can use Dejavu interactively through the terminal. Assuming you've already instantiated a Dejavu object, you can match audio through your computer's microphone:
+There are two ways to recognize audio using Dejavu. You can recognize by reading and processing files on disk, or through your computer's microphone.
 
-```python
->>> from dejavu.recognize import MicrophoneRecognizer
->>> print djv.recognize(MicrophoneRecognizer, seconds=10) # Defaults to 10 seconds.
-{
-    'song_id': 16,
-    'song_name': 'Love Somebody - Maroon 5', 
-    'confidence': 21,
-    'offset' : 867
-}
+### Recognizing: On Disk
+
+Through the terminal:
+
+```bash
+$ python dejavu.py --recognize file sometrack.wav 
+{'song_id': 1, 'song_name': 'Taylor Swift - Shake It Off', 'confidence': 3948, 'offset_seconds': 30.00018, 'match_time': 0.7159781455993652, 'offset': 646L}
 ```
 
-Or by reading files via scripting functions:
+or in scripting, assuming you've already instantiated a Dejavu object: 
 
 ```python
 >>> from dejavu.recognize import FileRecognizer
->>> song = djv.recognize(FileRecognizer, "va_us_top_40/wav/07 - Mirrors - Justin Timberlake.wav")
+>>> song = djv.recognize(FileRecognizer, "va_us_top_40/wav/Mirrors - Justin Timberlake.wav")
 ```
 
-Note that the `offset` field of the returned song object tells you about the position in which the song was matched. See [here](https://github.com/worldveil/dejavu/issues/43) for a description of how. 
+### Recognizing: Through a Microphone
 
-## Testing (New!)
+With scripting:
+
+```python
+>>> from dejavu.recognize import MicrophoneRecognizer
+>>> song = djv.recognize(MicrophoneRecognizer, seconds=10) # Defaults to 10 seconds.
+```
+
+and with the command line script, you specify the number of seconds to listen:
+
+```bash
+$ python dejavu.py --recognize mic 10
+```
+
+## Testing
 
 Testing out different parameterizations of the fingerprinting algorithm is often useful as the corpus becomes larger and larger, and inevitable tradeoffs between speed and accuracy come into play. 
 
@@ -152,7 +176,7 @@ rm -rf ./results ./temp_audio
 
 ###########
 # Fingerprint files of extension mp3 in the ./mp3 folder
-python dejavu.py fingerprint ./mp3/ mp3
+python dejavu.py --fingerprint ./mp3/ mp3
 
 ##########
 # Run a test suite on the ./mp3 folder by extracting 1, 2, 3, 4, and 5 
@@ -169,7 +193,7 @@ python run_tests.py \
     ./mp3
 ```
 
-The testing scripts are as of now are a bit rough, and could certainly use some love and attention if you're interested in submitting a PR!
+The testing scripts are as of now are a bit rough, and could certainly use some love and attention if you're interested in submitting a PR! For example, underscores in audio filenames currently [breaks](https://github.com/worldveil/dejavu/issues/63) the test scripts. 
 
 ## How does it work?
 
